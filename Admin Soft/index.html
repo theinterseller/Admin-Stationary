@@ -1,0 +1,176 @@
+<!-- index.html - Place this in your Netlify project root -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stationary Management Form</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background-color: #f4f4f4;
+    }
+    label { display: block; margin-top: 10px; }
+    input, select {
+      width: 320px;
+      padding: 8px;
+      margin-top: 5px;
+    }
+    .item-entry {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .item-entry input { flex: 1; }
+    #restock-fields {
+      margin-top: 10px;
+      background: #e9ecef;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #submit-btn { background-color: #4CAF50; color: white; border: none; }
+    #add-item-btn { background-color: #007bff; color: white; border: none; margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Stationary Issue / Restock Form</h2>
+
+  <label for="entity">Entity:</label>
+  <select id="entity">
+    <option value="Prayatna">Prayatna</option>
+    <option value="Sashakt">Sashakt</option>
+  </select>
+
+  <label for="mode">Mode:</label>
+  <select id="mode" onchange="updateLabel()">
+    <option value="issued">Issue</option>
+    <option value="restocked">Restock</option>
+  </select>
+
+  <label id="person-label">Issued To:</label>
+  <input type="text" id="person" placeholder="Enter name">
+
+  <div id="restock-fields" style="display:none;">
+    <label for="vendor">Vendor Name:</label>
+    <input type="text" id="vendor" placeholder="Vendor Name">
+
+    <label for="bill">Bill No:</label>
+    <input type="text" id="bill" placeholder="Bill Number">
+  </div>
+
+  <h3>Item List</h3>
+  <div id="items-container">
+    <div class="item-entry">
+      <input type="text" class="item-name" placeholder="Item Name">
+      <input type="number" class="item-qty" placeholder="Quantity">
+    </div>
+  </div>
+
+  <button id="add-item-btn" onclick="addItem()">Add Item</button>
+  <button id="submit-btn" onclick="submitForm()">Submit</button>
+
+  <script>
+    function updateLabel() {
+      const mode = document.getElementById("mode").value;
+      const label = document.getElementById("person-label");
+      const restockFields = document.getElementById("restock-fields");
+      if (mode === "restocked") {
+        label.textContent = "Restocked By:";
+        restockFields.style.display = "block";
+      } else {
+        label.textContent = "Issued To:";
+        restockFields.style.display = "none";
+      }
+    }
+
+    function addItem() {
+      const container = document.getElementById("items-container");
+      const div = document.createElement("div");
+      div.classList.add("item-entry");
+      div.innerHTML = `
+        <input type="text" class="item-name" placeholder="Item Name">
+        <input type="number" class="item-qty" placeholder="Quantity">
+      `;
+      container.appendChild(div);
+    }
+
+    function submitForm() {
+      const entity = document.getElementById("entity").value;
+      const mode = document.getElementById("mode").value;
+      const person = document.getElementById("person").value.trim();
+      const vendor = document.getElementById("vendor").value.trim();
+      const bill = document.getElementById("bill").value.trim();
+
+      const itemNames = document.querySelectorAll(".item-name");
+      const itemQtys = document.querySelectorAll(".item-qty");
+
+      const items = [];
+      for (let i = 0; i < itemNames.length; i++) {
+        const name = itemNames[i].value.trim();
+        const qty = itemQtys[i].value.trim();
+        if (name && qty && parseInt(qty) > 0) {
+          items.push({ name, qty });
+        }
+      }
+
+      if (!person) {
+        alert("Please enter a name.");
+        return;
+      }
+
+      if (mode === "restocked" && (!vendor || !bill)) {
+        alert("Please enter vendor name and bill number.");
+        return;
+      }
+
+      if (items.length === 0) {
+        alert("Please add at least one valid item.");
+        return;
+      }
+
+      const data = {
+        entity,
+        mode,
+        person,
+        vendor: mode === "restocked" ? vendor : "",
+        bill: mode === "restocked" ? bill : "",
+        items,
+        date: new Date().toISOString()
+      };
+
+      fetch("https://script.google.com/macros/s/AKfycbzK1DbewWUIc7-QtubV-_j0_4dyNVbbnW5Cosw7Q_etuSx_0bTExD1hJaLw_fI8iZyigQ/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(msg => {
+        alert("Form submitted successfully!");
+        console.log("Response:", msg);
+        clearForm();
+      })
+      .catch(err => {
+        alert("Submission failed. Please try again.");
+        console.error("Error:", err);
+      });
+    }
+
+    function clearForm() {
+      document.getElementById("person").value = "";
+      document.getElementById("vendor").value = "";
+      document.getElementById("bill").value = "";
+      document.getElementById("items-container").innerHTML = `
+        <div class="item-entry">
+          <input type="text" class="item-name" placeholder="Item Name">
+          <input type="number" class="item-qty" placeholder="Quantity">
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
