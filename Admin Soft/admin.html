@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Stationery Report</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f1f5f9;
+      color: #1f2937;
+    }
+
+    h2 {
+      text-align: center;
+      color: #0f172a;
+      margin-bottom: 20px;
+    }
+
+    .filter-box {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      margin-bottom: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .filter-box label {
+      font-weight: 500;
+    }
+
+    .filter-box input {
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      width: 180px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .filter-box input:focus {
+      border-color: #2563eb;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #1e40af;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 40px;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    th, td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f3f4f6;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    tbody tr:hover {
+      background-color: #f9fafb;
+    }
+
+    .search-bar {
+      margin-bottom: 10px;
+      text-align: right;
+    }
+
+    .search-bar input {
+      padding: 8px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .export-print {
+      text-align: right;
+      margin-bottom: 10px;
+    }
+
+    .export-print button {
+      margin-left: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .filter-box {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filter-box input {
+        width: 100%;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .search-bar {
+        text-align: left;
+      }
+
+      .export-print {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Admin - Stationery Report</h2>
+
+  <div class="filter-box">
+    <label for="filter-month">Month:</label>
+    <input type="month" id="filter-month">
+
+    <label for="filter-name">Name:</label>
+    <input type="text" id="filter-name" placeholder="Issued To / Restocked By">
+
+    <label for="filter-email">Email:</label>
+    <input type="email" id="filter-email" placeholder="Optional">
+
+    <label for="filter-vendor">Vendor:</label>
+    <input type="text" id="filter-vendor" placeholder="Vendor Name">
+
+    <label for="filter-bill">Bill No:</label>
+    <input type="text" id="filter-bill" placeholder="Bill No">
+
+    <button onclick="loadData()">Search</button>
+    <a href="approval_requests.php">
+  <button class="btn btn-primary">📝 View Pending Approvals</button>
+</a>
+
+  </div>
+
+  <h3>Transaction Records</h3>
+  <div class="search-bar">
+    <input type="text" placeholder="Search Transactions" onkeyup="filterTable('data-table', this.value)">
+  </div>
+  <div class="export-print">
+    <button onclick="exportTableToCSV('data-table', 'transactions.csv')">Export CSV</button>
+    <button onclick="printTable('data-table')">Print</button>
+  </div>
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Entity</th>
+        <th>Mode</th>
+        <th>Person</th>
+        <th>Vendor</th>
+        <th>Bill</th>
+        <th>Items</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>Item Inventory Summary</h3>
+  <div class="search-bar">
+    <input type="text" placeholder="Search Inventory" onkeyup="filterTable('inventory-table', this.value)">
+  </div>
+  <div class="export-print">
+    <button onclick="exportTableToCSV('inventory-table', 'inventory.csv')">Export CSV</button>
+    <button onclick="printTable('inventory-table')">Print</button>
+  </div>
+  <table id="inventory-table">
+    <thead>
+      <tr>
+        <th>Item Name</th>
+        <th>Total Issued</th>
+        <th>Total Restocked</th>
+        <th>Net Balance</th>
+        <th>Last Updated</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    function loadData() {
+      const filters = {
+        month: document.getElementById("filter-month").value,
+        name: document.getElementById("filter-name").value,
+        email: document.getElementById("filter-email").value,
+        vendor: document.getElementById("filter-vendor").value,
+        bill: document.getElementById("filter-bill").value
+      };
+
+      fetch("fetch.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(filters)
+      })
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.querySelector("#data-table tbody");
+        const inventory = {};
+        tbody.innerHTML = "";
+
+        data.forEach(entry => {
+          const items = entry.items.map(i => `${i.name} (${i.qty})`).join(", ");
+          tbody.innerHTML += `
+            <tr>
+              <td>${convertUTCtoIST(entry.date)}</td>
+              <td>${entry.entity}</td>
+              <td>${entry.mode}</td>
+              <td>${entry.person}</td>
+              <td>${entry.vendor}</td>
+              <td>${entry.bill}</td>
+              <td>${items}</td>
+            </tr>`;
+
+          entry.items.forEach(item => {
+            const name = item.name;
+            if (!inventory[name]) {
+              inventory[name] = { issued: 0, restocked: 0, lastDate: entry.date };
+            }
+            if (entry.mode === "issued") {
+              inventory[name].issued += parseInt(item.qty);
+            } else if (entry.mode === "restocked") {
+              inventory[name].restocked += parseInt(item.qty);
+            }
+            if (new Date(entry.date) > new Date(inventory[name].lastDate)) {
+              inventory[name].lastDate = entry.date;
+            }
+          });
+        });
+
+        const invBody = document.querySelector("#inventory-table tbody");
+        invBody.innerHTML = "";
+        Object.keys(inventory).forEach(name => {
+          const i = inventory[name];
+          invBody.innerHTML += `
+            <tr>
+              <td>${name}</td>
+              <td>${i.issued}</td>
+              <td>${i.restocked}</td>
+              <td>${i.restocked - i.issued}</td>
+              <td>${i.lastDate}</td>
+            </tr>`;
+        });
+      })
+      .catch(err => alert("Error loading data: " + err));
+    }
+
+    function filterTable(tableId, query) {
+      const table = document.getElementById(tableId);
+      const rows = table.getElementsByTagName("tbody")[0].getElementsByTagName("tr");
+      const filter = query.toLowerCase();
+      Array.from(rows).forEach(row => {
+        const cells = row.getElementsByTagName("td");
+        const match = Array.from(cells).some(td => td.textContent.toLowerCase().includes(filter));
+        row.style.display = match ? "" : "none";
+      });
+    }
+
+    function exportTableToCSV(tableId, filename) {
+      const table = document.getElementById(tableId);
+      let csv = "";
+      const rows = table.querySelectorAll("tr");
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td, th");
+        const rowData = Array.from(cols).map(col => `"${col.innerText.trim()}"`).join(",");
+        csv += rowData + "\n";
+      });
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function printTable(tableId) {
+      const table = document.getElementById(tableId);
+      const newWin = window.open("");
+      newWin.document.write(`
+        <html>
+        <head><title>Print Table</title></head>
+        <body>${table.outerHTML}</body>
+        </html>
+      `);
+      newWin.document.close();
+      newWin.print();
+      newWin.close();
+    }
+
+  function convertUTCtoIST(utcStr) {
+  const utcDate = new Date(utcStr + " UTC");
+  return utcDate.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+}
+
+
+
+    window.onload = loadData;
+  </script>
+
+</body>
+</html>

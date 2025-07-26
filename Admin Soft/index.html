@@ -1,19 +1,28 @@
-<!-- index.html - Place this in your Netlify project root -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Stationary Management Form</title>
+  <meta charset="UTF-8">
+  <title>Stationery Form</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-      background-color: #f4f4f4;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #ffffff);
+      padding: 40px;
+      color: #333;
     }
-    label { display: block; margin-top: 10px; }
+    h2 { color: #00796b; }
+    label {
+      font-weight: 600;
+      margin-top: 15px;
+      display: block;
+    }
     input, select {
-      width: 320px;
-      padding: 8px;
-      margin-top: 5px;
+      margin: 8px 0;
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
     }
     .item-entry {
       display: flex;
@@ -21,33 +30,41 @@
       margin-top: 10px;
     }
     .item-entry input { flex: 1; }
-    #restock-fields {
-      margin-top: 10px;
-      background: #e9ecef;
-      padding: 10px;
-      border-radius: 5px;
-    }
     button {
       margin-top: 20px;
       padding: 10px 20px;
+      background-color: #00796b;
+      color: white;
+      border: none;
+      border-radius: 6px;
       font-size: 16px;
       cursor: pointer;
+      transition: background-color 0.3s ease;
     }
-    #submit-btn { background-color: #4CAF50; color: white; border: none; }
-    #add-item-btn { background-color: #007bff; color: white; border: none; margin-left: 10px; }
+    button:hover { background-color: #004d40; }
+    #form-container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: auto;
+    }
   </style>
 </head>
 <body>
-  <h2>Stationary Issue / Restock Form</h2>
 
-  <label for="entity">Entity:</label>
+<div id="form-container">
+  <h2>Stationery Issue / Restock Form</h2>
+
+  <label>Entity:</label>
   <select id="entity">
     <option value="Prayatna">Prayatna</option>
     <option value="Sashakt">Sashakt</option>
   </select>
 
-  <label for="mode">Mode:</label>
-  <select id="mode" onchange="updateLabel()">
+  <label>Mode:</label>
+  <select id="mode" onchange="toggleRestock()">
     <option value="issued">Issue</option>
     <option value="restocked">Restock</option>
   </select>
@@ -55,122 +72,217 @@
   <label id="person-label">Issued To:</label>
   <input type="text" id="person" placeholder="Enter name">
 
-  <div id="restock-fields" style="display:none;">
-    <label for="vendor">Vendor Name:</label>
-    <input type="text" id="vendor" placeholder="Vendor Name">
+  <div id="employee-verification-fields">
+    <label>Employee ID:</label>
+    <input type="text" id="employee-id" placeholder="Enter your Employee ID">
 
-    <label for="bill">Bill No:</label>
-    <input type="text" id="bill" placeholder="Bill Number">
+    <label>Date of Birth:</label>
+    <input type="date" id="employee-dob">
   </div>
 
-  <h3>Item List</h3>
+  <div id="employee-email-wrapper">
+    <label>Email (Employee):</label>
+    <input type="email" id="employee-email" placeholder="Enter employee's email" required>
+  </div>
+
+  <div id="manager-email-wrapper">
+    <label>Email (Manager):</label>
+    <input type="email" id="manager-email" placeholder="Enter manager's email for approval" required>
+  </div>
+
+  <div id="restock-fields" style="display:none;">
+    <label>Vendor:</label>
+    <input type="text" id="vendor">
+
+    <label>Bill No:</label>
+    <input type="text" id="bill">
+
+    <label>Axis Code:</label>
+    <input type="text" id="axis-code" placeholder="Enter Axis Code">
+  </div>
+
+  <h3>Items</h3>
   <div id="items-container">
     <div class="item-entry">
-      <input type="text" class="item-name" placeholder="Item Name">
+      <input type="text" class="item-name" list="item-options" placeholder="Item Name">
       <input type="number" class="item-qty" placeholder="Quantity">
     </div>
   </div>
 
-  <button id="add-item-btn" onclick="addItem()">Add Item</button>
-  <button id="submit-btn" onclick="submitForm()">Submit</button>
+  <datalist id="item-options"></datalist>
 
-  <script>
-    function updateLabel() {
-      const mode = document.getElementById("mode").value;
-      const label = document.getElementById("person-label");
-      const restockFields = document.getElementById("restock-fields");
-      if (mode === "restocked") {
-        label.textContent = "Restocked By:";
-        restockFields.style.display = "block";
-      } else {
-        label.textContent = "Issued To:";
-        restockFields.style.display = "none";
-      }
+  <button onclick="addItem()">+ Add Item</button>
+  <button onclick="submitForm()">Submit</button>
+  <button onclick="redirectToAdmin()">🔐 Admin Panel</button>
+</div>
+
+<script>
+const scriptURL = "https://adminstat.giveyourissuesofit.org.in/submit.php";
+const itemsEndpoint = "https://adminstat.giveyourissuesofit.org.in/available_items.php";
+const employeeVerifyURL = "https://adminstat.giveyourissuesofit.org.in/verify_employee.php";
+
+let validItems = {};
+
+function toggleRestock() {
+  const mode = document.getElementById("mode").value;
+  const isRestock = mode === "restocked";
+
+  document.getElementById("person-label").textContent = isRestock ? "Restocked By:" : "Issued To:";
+  document.getElementById("restock-fields").style.display = isRestock ? "block" : "none";
+  document.getElementById("employee-verification-fields").style.display = isRestock ? "none" : "block";
+  document.getElementById("employee-email-wrapper").style.display = isRestock ? "none" : "block";
+  document.getElementById("manager-email-wrapper").style.display = isRestock ? "none" : "block";
+}
+
+function fetchAvailableItems() {
+  fetch(itemsEndpoint)
+    .then(res => res.json())
+    .then(data => {
+      validItems = data;
+      const datalist = document.getElementById("item-options");
+      datalist.innerHTML = "";
+      Object.keys(data).forEach(item => {
+        const option = document.createElement("option");
+        option.value = item;
+        datalist.appendChild(option);
+      });
+    })
+    .catch(err => console.error("Failed to load item list:", err));
+}
+
+function addItem() {
+  const container = document.getElementById("items-container");
+  const entry = document.createElement("div");
+  entry.className = "item-entry";
+  entry.innerHTML = `
+    <input type="text" class="item-name" list="item-options" placeholder="Item Name">
+    <input type="number" class="item-qty" placeholder="Quantity">
+  `;
+  container.appendChild(entry);
+}
+
+async function validateEmployee() {
+  const empID = document.getElementById("employee-id").value.trim();
+  const dob = document.getElementById("employee-dob").value;
+  if (!empID || !dob) {
+    alert("Please enter Employee ID and Date of Birth.");
+    return false;
+  }
+
+  try {
+    const response = await fetch(employeeVerifyURL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employee_id: empID, dob: dob })
+    });
+
+    const result = await response.json();
+    if (result.valid) {
+      return true;
+    } else {
+      alert("Invalid Employee ID or DOB.");
+      return false;
     }
+  } catch (error) {
+    alert("Error verifying employee credentials.");
+    return false;
+  }
+}
 
-    function addItem() {
-      const container = document.getElementById("items-container");
-      const div = document.createElement("div");
-      div.classList.add("item-entry");
-      div.innerHTML = `
-        <input type="text" class="item-name" placeholder="Item Name">
-        <input type="number" class="item-qty" placeholder="Quantity">
-      `;
-      container.appendChild(div);
-    }
+async function submitForm() {
+  const mode = document.getElementById("mode").value;
+  const isRestock = mode === "restocked";
 
-    function submitForm() {
-      const entity = document.getElementById("entity").value;
-      const mode = document.getElementById("mode").value;
-      const person = document.getElementById("person").value.trim();
-      const vendor = document.getElementById("vendor").value.trim();
-      const bill = document.getElementById("bill").value.trim();
+  if (!isRestock) {
+    const isValidEmployee = await validateEmployee();
+    if (!isValidEmployee) return;
+  }
 
-      const itemNames = document.querySelectorAll(".item-name");
-      const itemQtys = document.querySelectorAll(".item-qty");
+  const axisCode = document.getElementById("axis-code").value;
+  if (isRestock && axisCode !== "Admin@123") {
+    alert("Invalid Axis Code. Please enter the correct one.");
+    return;
+  }
 
-      const items = [];
-      for (let i = 0; i < itemNames.length; i++) {
-        const name = itemNames[i].value.trim();
-        const qty = itemQtys[i].value.trim();
-        if (name && qty && parseInt(qty) > 0) {
-          items.push({ name, qty });
+  const employeeEmail = document.getElementById("employee-email").value.trim();
+  const managerEmail = document.getElementById("manager-email").value.trim();
+
+  const data = {
+    entity: document.getElementById("entity").value,
+    mode,
+    person: document.getElementById("person").value,
+    employee_email: employeeEmail,
+    manager_email: managerEmail,
+    vendor: document.getElementById("vendor").value,
+    bill: document.getElementById("bill").value,
+    axis_code: axisCode,
+    items: []
+  };
+
+  const entries = document.querySelectorAll(".item-entry");
+  for (const entry of entries) {
+    const name = entry.querySelector(".item-name").value.trim();
+    const qty = parseInt(entry.querySelector(".item-qty").value.trim());
+    if (name && qty > 0) {
+      if (!isRestock) {
+        if (!(name in validItems)) {
+          alert(`"${name}" is not available or not in the inventory.`);
+          return;
+        }
+        if (qty > validItems[name]) {
+          alert(`Only ${validItems[name]} available for "${name}".`);
+          return;
         }
       }
-
-      if (!person) {
-        alert("Please enter a name.");
-        return;
-      }
-
-      if (mode === "restocked" && (!vendor || !bill)) {
-        alert("Please enter vendor name and bill number.");
-        return;
-      }
-
-      if (items.length === 0) {
-        alert("Please add at least one valid item.");
-        return;
-      }
-
-      const data = {
-        entity,
-        mode,
-        person,
-        vendor: mode === "restocked" ? vendor : "",
-        bill: mode === "restocked" ? bill : "",
-        items,
-        date: new Date().toISOString()
-      };
-
-      fetch("https://script.google.com/macros/s/AKfycbzK1DbewWUIc7-QtubV-_j0_4dyNVbbnW5Cosw7Q_etuSx_0bTExD1hJaLw_fI8iZyigQ/exec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      })
-      .then(res => res.json())
-      .then(msg => {
-        alert("Form submitted successfully!");
-        console.log("Response:", msg);
-        clearForm();
-      })
-      .catch(err => {
-        alert("Submission failed. Please try again.");
-        console.error("Error:", err);
-      });
+      data.items.push({ name, qty });
     }
+  }
 
-    function clearForm() {
-      document.getElementById("person").value = "";
-      document.getElementById("vendor").value = "";
-      document.getElementById("bill").value = "";
-      document.getElementById("items-container").innerHTML = `
-        <div class="item-entry">
-          <input type="text" class="item-name" placeholder="Item Name">
-          <input type="number" class="item-qty" placeholder="Quantity">
-        </div>
-      `;
+  if (!data.person || data.items.length === 0) {
+    alert("Please complete the form and add at least one valid item.");
+    return;
+  }
+
+  if (!isRestock && (!employeeEmail || !managerEmail)) {
+    alert("Please enter both employee and manager email for issuance.");
+    return;
+  }
+
+  fetch(scriptURL, {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: {
+      "Content-Type": "application/json"
     }
-  </script>
+  })
+  .then(response => response.text())
+  .then(text => {
+    try {
+      const json = JSON.parse(text);
+      alert("Submitted successfully!");
+      location.reload();
+    } catch (err) {
+      console.error("Server returned non-JSON:", text);
+      alert("Server Error:\n" + text);
+    }
+  })
+  .catch(err => alert("Error: " + err));
+}
+
+function redirectToAdmin() {
+  const password = prompt("Enter admin password:");
+  if (password === "Sandeep@123") {
+    window.location.href = "admin.html";
+  } else {
+    alert("Unauthorized Access");
+  }
+}
+
+window.onload = () => {
+  toggleRestock();
+  fetchAvailableItems();
+};
+</script>
+
 </body>
 </html>
